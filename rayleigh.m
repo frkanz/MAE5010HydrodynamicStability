@@ -18,32 +18,31 @@
 clc; clear; format long;
 
 % Initialization
-llim =-15*pi; % Left/Lower Domain Limit
-rlim = 15*pi; % Right/Upper Domain Limit
-N = 1001; % Number of node points
-y = llim:(rlim-llim)/(N-1):rlim; % Node Locations
-v = zeros(N,1); % Initialize velocity vector
-cr = 0.5; % Real part of Phase Speed
+llim =-30*pi; % Left/Lower Domain Limit
+rlim = 30*pi; % Right/Upper Domain Limit
 
-options = optimoptions('fsolve','Display','off','TolFun',1e-9); % Fsolve options
+options = optimoptions('fsolve','Display','off','StepTolerance',1e-9,'FunctionTolerance',1e-6,'MaxFunctionEvaluations',2000,'Algorithm','levenberg-marquardt'); % Fsolve options
 
-dalpha = 0.1; % Wave number stepping for plotting alpha vs. omega
+dalpha = 0.1; % Wave number steping for plotting alpha vs. omega
 alphaplot = size(1/dalpha+1,1); % Variable to store alpha values for plotting
 omegaplot = size(1/dalpha+1,1); % Variable to store omega values for plotting
+cplot = size(1/dalpha+1,1); % Variable to store omega values for plotting
 j = 1; % iterator to prevent dynamic allocation
 fprintf('alpha\treal(c)\timag(c)\treal(omega)\timag(omega)\n');
 fprintf('----------------------------------------------------\n');
-
-for alpha=1:-dalpha:0    % Wave number in x-direction
-    ci = 0.03; % Initial guess for imaginary part of phase speed
-    ci = fsolve(@(ci)fun1(alpha,cr,llim,rlim,ci),ci,options); % Find ci that satisfies boundary conditions
-    ci = real(ci); % Take the real part in case it returns imaginary number
+c(1) = 0.5; % Initial guess for real part of the phase speed
+c(2) = 0.03; % Initial guess for imaginary part of the phase speed
+for alpha=0.9:-dalpha:0.00    % Wave number in x-direction
+    c = fsolve(@(c)fun1(alpha,llim,rlim,c),c,options); % Find ci that satisfies boundary conditions
+    cr = c(1); % Take the real part
+    ci = c(2); % Take the imaginary part
     
     % The rest is plotting and storing
     omegar = alpha*cr; % omega = alpha * c
     omegai = alpha*ci;
     alphaplot(j) = alpha; % Storing alpha for plotting
     omegaplot(j) = omegai; % Storing omega_i for plotting
+    cplot(j) = ci;
     j = j+1; % iterator advancement
     fprintf('%.2f\t%.2f\t%.6f\t%.2f\t%.6f\n',alpha,cr,ci,omegar,omegai);
 end
@@ -68,8 +67,8 @@ function dydx = vdp1(y,v,alpha,c)
 end
 
 % fsolve function to satisfy
-function F = fun1(alpha,cr,llim,rlim,ci)
-    c = cr + 1i*ci; % Phase speed
+function F = fun1(alpha,llim,rlim,c)
+    c = c(1) + 1i*c(2); % Phase speed
     [~,v] = ode45(@(y,v)vdp1(y,v,alpha,c),[llim rlim],[0; 1]); %RK45 for solution
-    F = real(v(end))-0; % v(N)-rBC = 0 function
+    F = [(real(v(end,1))-0); imag(v(end,1))-0];% v(N)-rBC = 0 function
 end
